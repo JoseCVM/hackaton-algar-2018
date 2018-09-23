@@ -1,3 +1,5 @@
+# https://colab.research.google.com/drive/1H9epx3rtmUVdhe0Qb_L5O2rQt8q7CpLZ
+
 # Load All Libraries
 from __future__ import print_function
 from collections import Counter
@@ -35,7 +37,7 @@ test_df['source']='test'
 data = pd.concat([train_df, test_df],ignore_index=True)
 
 data = data.fillna(0)
-    
+
 train_df = data.loc[data['source']=="train"]
 test_df = data.loc[data['source']=="test"]
 
@@ -45,27 +47,27 @@ train_df = train_df.drop(['Churn'],axis=1)
 float_columns=[]
 cat_columns=[]
 int_columns=[]
-    
+
 for i in train_df.columns:
     if i not in cols:
         continue
-    if train_df[i].dtype == 'float' : 
+    if train_df[i].dtype == 'float' :
         float_columns.append(i)
     elif train_df[i].dtype == 'int64' or train_df[i].dtype == 'int32' or train_df[i].dtype == 'int16' or train_df[i].dtype == 'int8':
         int_columns.append(i)
     elif train_df[i].dtype == 'object':
         cat_columns.append(i)
-          
+
 train_cat_features = train_df[cat_columns]
 train_float_features = train_df[float_columns]
 train_int_features = train_df[int_columns]
 
 train_cat_features_ver2 = train_cat_features.apply(LabelEncoder().fit_transform)
-    
+
 temp_1 = np.concatenate((train_cat_features_ver2,train_float_features),axis=1)
 train_transformed_features = np.concatenate((temp_1,train_int_features),axis=1)
 train_transformed_features = pd.DataFrame(data=train_transformed_features)
-    
+
 array = train_transformed_features.values
 number_of_features = len(array[0])
 X = array[:,0:number_of_features]
@@ -115,7 +117,7 @@ feature_names = sum([feature_names_cat, feature_names_float, feature_names_int],
 
 # Create the LIME Explainer
 explainer = lime.lime_tabular.LimeTabularExplainer(X_train ,feature_names = feature_names,class_names=['Stay','Leave'],
-                                                   categorical_features=cat_columns, 
+                                                   categorical_features=cat_columns,
                                                    categorical_names=feature_names_cat, kernel_width=2)
 
 # Pick the observation in the validation set for which explanation is required
@@ -130,53 +132,53 @@ dn = dict()
 negative = []
 examples = 10
 while k < len(X_validation) and (procn < examples or procp < examples):
-    #n = random.randint(0,len(X_validation)-1)
+    n = random.randint(0,len(X_validation)-1)
     k+=1
-    exp = explainer.explain_instance(X_validation[k], predict_fn_logreg, num_features=6)
+    exp = explainer.explain_instance(X_validation[n], predict_fn_logreg, num_features=6)
     #print(exp.as_list())
-    if model_logreg.predict(X_validation[k].reshape(1,-1)) == 'Yes':    
-        for i in range(2):        
-            s = re.sub("[^a-zA-Z]+","",exp.as_list()[i][0])    
+    if model_logreg.predict(X_validation[k].reshape(1,-1)) == 'Yes':
+        for i in range(2):
+            s = re.sub("[^a-zA-Z]+","",exp.as_list()[i][0])
             if s in feature_names_cat:
-                if exp.as_list()[i][1] > 0:    
-                    final = s+" estado: "+str(data[s][k])
-                    if final not in dn:                       
+                if exp.as_list()[i][1] > 0:
+                    final = s+" estado: "+str(data[s][n])
+                    if final not in dp:
                         dp[final] = exp.as_list()[i][1]
                     else:
                         dp[final] = dp.get(final) +  exp.as_list()[i][1]
-                    positive.append(s+" estado: "+str(data[s][k]))              
+                    positive.append(s+" estado: "+str(data[s][n]))
             else:
-                if exp.as_list()[i][1] > 0:                
+                if exp.as_list()[i][1] > 0:
                     final = s+" estado: "+str(exp.as_list()[i][0])
-                    if final not in dp:                       
+                    if final not in dp:
                         dp[final] = exp.as_list()[i][1]
                     else:
                         dp[final] = dp.get(final) +  exp.as_list()[i][1]
-                    positive.append(final)      
+                    positive.append(final)
         procp+=1
     else:
         for i in range(2):
             s = re.sub("[^a-zA-Z]+","",exp.as_list()[i][0])
             if s in feature_names_cat:
-                if exp.as_list()[i][1] < 0:    
-                    final = s+" estado: "+str(data[s][k])
-                    if final not in dn:                       
+                if exp.as_list()[i][1] < 0:
+                    final = s+" estado: "+str(data[s][n])
+                    if final not in dn:
                         dn[final] = exp.as_list()[i][1]
                     else:
                         dn[final] = dn.get(final) +  exp.as_list()[i][1]
-                    negative.append(s+" estado: "+str(data[s][k]))              
+                    negative.append(s+" estado: "+str(data[s][n]))
             else:
-                if exp.as_list()[i][1] < 0:                
+                if exp.as_list()[i][1] < 0:
                     final = s+" estado: "+str(exp.as_list()[i][0])
-                    if final not in dn:                       
+                    if final not in dn:
                         dn[final] = exp.as_list()[i][1]
                     else:
                         dn[final] = dn.get(final) +  exp.as_list()[i][1]
-                    negative.append(final)       
+                    negative.append(final)
         procn+=1
-    
-    #print(exp.as_list())    
-    
+
+    #print(exp.as_list())
+
 print("Fez o cliente sair: ")
 for key,value in Counter(positive).most_common(3):
     print(str(key)+", surgiu "+str(value)+" vezes, puxando a probabilidade para essa classe em "+str("{:.2f}".format(abs(dp[key]/value) * 100))+"%")
